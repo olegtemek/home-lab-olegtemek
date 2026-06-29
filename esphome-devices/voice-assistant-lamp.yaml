@@ -1,0 +1,237 @@
+esphome:
+  name: voice-assistant-lamp-esp32
+  friendly_name: Voice Assistant Lamp
+  platformio_options:
+    board_build.flash_mode: dio
+  on_boot:
+    priority: -10
+    then:
+    - micro_wake_word.start:
+      - light.turn_on:
+          id: rgb_strip
+          red: 100%
+          green: 80%
+          blue: 50%
+          brightness: 60%
+      - script.execute: save_light_state
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_AUDIO_BOARD_CUSTOM: "y"
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+
+globals:
+  - id: saved_state_on
+    type: bool
+    restore_value: no
+    initial_value: 'true'
+  - id: saved_red
+    type: float
+    restore_value: no
+    initial_value: '1.0'
+  - id: saved_green
+    type: float
+    restore_value: no
+    initial_value: '0.8'
+  - id: saved_blue
+    type: float
+    restore_value: no
+    initial_value: '0.5'
+  - id: saved_brightness
+    type: float
+    restore_value: no
+    initial_value: '0.5'
+  - id: va_active
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+script:
+  - id: save_light_state
+    then:
+      - lambda: |-
+          auto call = id(rgb_strip).current_values;
+          id(saved_state_on) = call.is_on();
+          id(saved_red) = call.get_red();
+          id(saved_green) = call.get_green();
+          id(saved_blue) = call.get_blue();
+          id(saved_brightness) = call.get_brightness();
+          ESP_LOGI("light_save", "Saved: on=%d r=%.2f g=%.2f b=%.2f br=%.2f",
+                   id(saved_state_on), id(saved_red), id(saved_green),
+                   id(saved_blue), id(saved_brightness));
+
+  - id: restore_light_state
+    then:
+      - lambda: |-
+          ESP_LOGI("light_restore", "Restoring: on=%d r=%.2f g=%.2f b=%.2f br=%.2f",
+                   id(saved_state_on), id(saved_red), id(saved_green),
+                   id(saved_blue), id(saved_brightness));
+          if (id(saved_state_on)) {
+            auto call = id(rgb_strip).turn_on();
+            call.set_red(id(saved_red));
+            call.set_green(id(saved_green));
+            call.set_blue(id(saved_blue));
+            call.set_brightness(id(saved_brightness));
+            call.set_effect("None");
+            call.set_transition_length(0);
+            call.perform();
+          } else {
+            auto call = id(rgb_strip).turn_off();
+            call.set_transition_length(0);
+            call.perform();
+          }
+
+api:
+  encryption:
+    key: "key"
+  on_client_connected:
+    then:
+      - delay: 50ms
+      - micro_wake_word.start:
+  on_client_disconnected:
+    then:
+      - voice_assistant.stop:
+
+ota:
+  - platform: esphome
+    password: "pass"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+captive_portal:
+
+button:
+  - platform: restart
+    name: "Restart"
+    id: but_rest
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: rgb_strip
+    name: "RGB Strip"
+    pin: GPIO5
+    num_leds: 60
+    chipset: WS2812
+    rgb_order: GRB
+    default_transition_length: 0s
+    on_turn_on:
+      - if:
+          condition:
+            lambda: 'return !id(va_active);'
+          then:
+            - delay: 100ms
+            - script.execute: save_light_state
+    on_turn_off:
+      - if:
+          condition:
+            lambda: 'return !id(va_active);'
+          then:
+            - script.execute: save_light_state
+    effects:
+      - pulse:
+      - pulse:
+          name: "Fast Pulse"
+          transition_length: 0.5s
+          update_interval: 0.5s
+          min_brightness: 0%
+          max_brightness: 100%
+
+switch:
+  - platform: template
+    id: mute
+    name: mute
+    optimistic: true
+    on_turn_on:
+      - lambda: 'id(va_active) = true;'
+      - micro_wake_word.stop:
+      - voice_assistant.stop:
+      - light.turn_on:
+          id: rgb_strip
+          red: 100%
+          green: 0%
+          blue: 0%
+          brightness: 60%
+          effect: fast pulse
+      - delay: 2s
+      - light.turn_off: rgb_strip
+      - light.turn_on:
+          id: rgb_strip
+          red: 100%
+          green: 0%
+          blue: 0%
+          brightness: 30%
+    on_turn_off:
+      - micro_wake_word.start:
+      - light.turn_on:
+          id: rgb_strip
+          red: 0%
+          green: 100%
+          blue: 0%
+          brightness: 60%
+          effect: fast pulse
+      - delay: 2s
+      - script.execute: restore_light_state
+      - lambda: 'id(va_active) = false;'
+
+i2s_audio:
+  - id: i2s_in
+    i2s_lrclk_pin: GPIO3
+    i2s_bclk_pin: GPIO2
+
+microphone:
+  - platform: i2s_audio
+    id: va_mic
+    adc_type: external
+    i2s_din_pin: GPIO4
+    channel: left
+    pdm: false
+    i2s_audio_id: i2s_in
+    bits_per_sample: 32bit
+
+micro_wake_word:
+  on_wake_word_detected:
+    - script.execute: save_light_state
+    - script.wait: save_light_state
+    - lambda: 'id(va_active) = true;'
+    - voice_assistant.start:
+        wake_word: !lambda return wake_word;
+    - light.turn_on:
+        id: rgb_strip
+        red: 30%
+        green: 30%
+        blue: 70%
+        brightness: 60%
+        effect: fast pulse
+  models:
+    - model: alexa
+
+voice_assistant:
+  id: va
+  microphone: va_mic
+  noise_suppression_level: 2.0
+  volume_multiplier: 4.0
+  on_error:
+    - script.execute: restore_light_state
+    - lambda: 'id(va_active) = false;'
+    - micro_wake_word.start:
+  on_end:
+    then:
+      - wait_until:
+          not:
+            voice_assistant.is_running:
+      - script.execute: restore_light_state
+      - lambda: 'id(va_active) = false;'
+      - micro_wake_word.start:

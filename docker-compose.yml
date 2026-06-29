@@ -1,0 +1,162 @@
+services:
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: npm
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    volumes:
+      - ${DATA_ROOT}/npm/data:/data
+      - ${DATA_ROOT}/npm/letsencrypt:/etc/letsencrypt
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "/usr/bin/check-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    labels:
+      - autoheal=true
+
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    volumes:
+      - ${DATA_ROOT}/homeassistant/config:/config
+      - /etc/localtime:/etc/localtime:ro
+    expose:
+      - "8123"
+    devices:
+      - /dev/serial/by-id/usb-ITead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_76d8a7e1cc3aec119d0b9c957a0af07f-if00-port0:/dev/ttyUSB0
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8123/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    labels:
+      - autoheal=true
+    # network_mode: host  # если ломается автообнаружение устройств
+
+  esphome:
+    image: ghcr.io/esphome/esphome:latest
+    container_name: esphome
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ${DATA_ROOT}/esphome/config:/config
+      - /etc/localtime:/etc/localtime:ro
+
+  whisper:
+    image: rhasspy/wyoming-whisper:latest
+    container_name: whisper
+    restart: unless-stopped
+    command: --model ${WHISPER_MODEL} --language ${WHISPER_LANGUAGE}
+    volumes:
+      - ${DATA_ROOT}/whisper/data:/data
+    expose:
+      - "10300"
+    networks:
+      - proxy
+
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    environment:
+      - SIGNUPS_ALLOWED=${VAULTWARDEN_SIGNUPS_ALLOWED}
+      - DOMAIN=${VAULTWARDEN_DOMAIN}
+    volumes:
+      - ${DATA_ROOT}/vaultwarden:/data
+    expose:
+      - "80"
+    networks:
+      - proxy
+    labels:
+      - autoheal=true
+
+  photoprism:
+    image: photoprism/photoprism:latest
+    container_name: photoprism
+    restart: unless-stopped
+    environment:
+      - PHOTOPRISM_ADMIN_USER=${PHOTOPRISM_ADMIN_USER}
+      - PHOTOPRISM_ADMIN_PASSWORD=${PHOTOPRISM_ADMIN_PASSWORD}
+      - PHOTOPRISM_DATABASE_DRIVER=sqlite
+      - PHOTOPRISM_ORIGINALS_LIMIT=${PHOTOPRISM_ORIGINALS_LIMIT}
+      - PHOTOPRISM_SITE_URL=${PHOTOPRISM_SITE_URL}
+    working_dir: /photoprism
+    volumes:
+      - ${DATA_ROOT}/photoprism/photos:/photoprism/originals
+      - ${DATA_ROOT}/photoprism/storage:/photoprism/storage
+    expose:
+      - "2342"
+    networks:
+      - proxy
+    labels:
+      - autoheal=true
+
+  beszel:
+    image: henrygd/beszel:latest
+    container_name: beszel
+    restart: unless-stopped
+    expose:
+      - "8090"
+    volumes:
+      - ${DATA_ROOT}/beszel/data:/beszel_data
+      - ${DATA_ROOT}/beszel/socket:/beszel_socket
+    environment:
+      APP_URL: ${BESZEL_APP_URL}
+    networks:
+      - proxy
+
+  beszel-agent:
+    image: henrygd/beszel-agent:alpine
+    container_name: beszel-agent
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ${DATA_ROOT}/beszel/agent:/var/lib/beszel-agent
+      - ${DATA_ROOT}/beszel/socket:/beszel_socket
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      LISTEN: /beszel_socket/beszel.sock
+      HUB_URL: http://localhost:8090
+      TOKEN: ${BESZEL_TOKEN}
+      KEY: ${BESZEL_KEY}
+
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    expose:
+      - "80"
+    volumes:
+      - ${DATA_ROOT}/filebrowser/share:/srv
+      - ${DATA_ROOT}/filebrowser/data:/data
+    restart: unless-stopped
+    labels:
+      - autoheal=true
+    networks:
+      - proxy
+
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: autoheal
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  proxy:
+    name: proxy
