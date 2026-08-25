@@ -1,10 +1,12 @@
 esphome:
   name: led-light-kitchen-esp32
   friendly_name: "Led Light Kitchen"
-  platform: ESP32
-  board: esp32dev
 
-# Enable logging
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
 logger:
 
 # Enable Home Assistant API (alternative to MQTT)

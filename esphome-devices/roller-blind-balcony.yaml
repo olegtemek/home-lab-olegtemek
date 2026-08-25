@@ -13,7 +13,7 @@ esphome:
           id(motor3).report_position(pos * ${steps_motor3} / 100);
           id(motor3).set_target(pos * ${steps_motor3} / 100);
       - cover.template.publish:
-          id: balcony_blind
+          id: blinds
           position: !lambda 'return id(blind_position) / 100.0;'
 
 esp32:
@@ -101,9 +101,6 @@ script:
     parameters:
       target: int
     then:
-      - logger.log:
-          format: "move_to_position CALLED target=%d"
-          args: ['target']
       - output.turn_on: enable1
       - output.turn_on: enable2
       - output.turn_on: enable3
