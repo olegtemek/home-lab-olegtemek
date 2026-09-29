@@ -82,7 +82,7 @@ services:
     restart: unless-stopped
     user: ${ALL_CASH_DOCKER_USER}
     environment:
-      - ALL_CASH_APP_DB_PATH=${ALL_CASH_APP_DB_PATH}
+      - ALL_CASH_APP_DB_PATH=/app/data/all_cash.db
       - ALL_CASH_APP_PULL_LIMIT=${ALL_CASH_APP_PULL_LIMIT}
       - ALL_CASH_APP_LOG_LEVEL=${ALL_CASH_APP_LOG_LEVEL}
       - ALL_CASH_SERVER_PORT=${ALL_CASH_SERVER_PORT}
@@ -91,7 +91,7 @@ services:
       - ALL_CASH_SERVER_SHUTDOWN_TIMEOUT=${ALL_CASH_SERVER_SHUTDOWN_TIMEOUT}
       - ALL_CASH_SERVER_CORS_ORIGINS=${ALL_CASH_SERVER_CORS_ORIGINS}
     volumes:
-      - ${ALL_CASH_DATA_DIR}:/app/data
+      - ${DATA_ROOT}/all-cash:/app/data
     expose:
       - "${ALL_CASH_SERVER_PORT}"
     networks:
