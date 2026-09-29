@@ -93,7 +93,7 @@ services:
     volumes:
       - ${DATA_ROOT}/all-cash:/app/data
     ports:
-      - "9091:${ALL_CASH_SERVER_PORT}"
+      - "${ALL_CASH_SERVER_PORT}"
     networks:
       - proxy
 
@@ -102,7 +102,7 @@ services:
     container_name: all-cash-web
     restart: unless-stopped
     ports:
-      - "9092:80"
+      - "80"
     networks:
       - proxy
 
