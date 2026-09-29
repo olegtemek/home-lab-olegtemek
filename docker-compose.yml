@@ -92,8 +92,8 @@ services:
       - ALL_CASH_SERVER_CORS_ORIGINS=${ALL_CASH_SERVER_CORS_ORIGINS}
     volumes:
       - ${DATA_ROOT}/all-cash:/app/data
-    expose:
-      - "${ALL_CASH_SERVER_PORT}"
+    ports:
+      - "9091:${ALL_CASH_SERVER_PORT}"
     networks:
       - proxy
 
@@ -101,8 +101,8 @@ services:
     image: ${ALL_CASH_WEB_IMAGE}:${ALL_CASH_IMAGE_TAG}
     container_name: all-cash-web
     restart: unless-stopped
-    expose:
-      - "80"
+    ports:
+      - "9092:80"
     networks:
       - proxy
 
