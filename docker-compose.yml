@@ -52,7 +52,7 @@ services:
     environment:
       - PHOTOPRISM_ADMIN_USER=${PHOTOPRISM_ADMIN_USER}
       - PHOTOPRISM_ADMIN_PASSWORD=${PHOTOPRISM_ADMIN_PASSWORD}
-      - PHOTOPRISM_DATABASE_DRIVER=sqlite
+      - PHOTOPRISM_DATABASE_DRIVER=${PHOTOPRISM_DATABASE_DRIVER}
       - PHOTOPRISM_ORIGINALS_LIMIT=${PHOTOPRISM_ORIGINALS_LIMIT}
       - PHOTOPRISM_SITE_URL=${PHOTOPRISM_SITE_URL}
     working_dir: /photoprism
@@ -73,6 +73,36 @@ services:
       - ${DATA_ROOT}/filebrowser/share:/srv
       - ${DATA_ROOT}/filebrowser/data:/data
     restart: unless-stopped
+    networks:
+      - proxy
+
+  all-cash-server:
+    image: ${ALL_CASH_SERVER_IMAGE}:${ALL_CASH_IMAGE_TAG}
+    container_name: all-cash-server
+    restart: unless-stopped
+    user: ${ALL_CASH_DOCKER_USER}
+    environment:
+      - ALL_CASH_APP_DB_PATH=${ALL_CASH_APP_DB_PATH}
+      - ALL_CASH_APP_PULL_LIMIT=${ALL_CASH_APP_PULL_LIMIT}
+      - ALL_CASH_APP_LOG_LEVEL=${ALL_CASH_APP_LOG_LEVEL}
+      - ALL_CASH_SERVER_PORT=${ALL_CASH_SERVER_PORT}
+      - ALL_CASH_SERVER_READ_TIMEOUT=${ALL_CASH_SERVER_READ_TIMEOUT}
+      - ALL_CASH_SERVER_WRITE_TIMEOUT=${ALL_CASH_SERVER_WRITE_TIMEOUT}
+      - ALL_CASH_SERVER_SHUTDOWN_TIMEOUT=${ALL_CASH_SERVER_SHUTDOWN_TIMEOUT}
+      - ALL_CASH_SERVER_CORS_ORIGINS=${ALL_CASH_SERVER_CORS_ORIGINS}
+    volumes:
+      - ${ALL_CASH_DATA_DIR}:/app/data
+    expose:
+      - "${ALL_CASH_SERVER_PORT}"
+    networks:
+      - proxy
+
+  all-cash-web:
+    image: ${ALL_CASH_WEB_IMAGE}:${ALL_CASH_IMAGE_TAG}
+    container_name: all-cash-web
+    restart: unless-stopped
+    expose:
+      - "80"
     networks:
       - proxy
 
