@@ -77,7 +77,8 @@ services:
       - proxy
 
   all-cash-server:
-    image: ${ALL_CASH_SERVER_IMAGE}:${ALL_CASH_IMAGE_TAG}
+    image: ${ALL_CASH_SERVER_IMAGE}:latest
+    pull_policy: always
     container_name: all-cash-server
     restart: unless-stopped
     user: ${ALL_CASH_DOCKER_USER}
@@ -98,7 +99,8 @@ services:
       - proxy
 
   all-cash-web:
-    image: ${ALL_CASH_WEB_IMAGE}:${ALL_CASH_IMAGE_TAG}
+    image: ${ALL_CASH_WEB_IMAGE}:latest
+    pull_policy: always
     container_name: all-cash-web
     restart: unless-stopped
     ports:
